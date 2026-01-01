@@ -75,9 +75,16 @@ export default function NewExpensePage() {
     };
 
     const suggestCategory = (vendor: string) => {
-        if (/タクシー|交通|電車/.test(vendor)) return '旅費交通費';
-        if (/レストラン|カフェ|コーヒー/.test(vendor)) return '会議費';
-        if (/Amazon|文具/.test(vendor)) return '消耗品費';
+        const v = vendor.toLowerCase();
+        if (/タクシー|交通|電車|jr|メトロ|航空|ana|jal|uber/.test(v)) return '旅費交通費';
+        if (/レストラン|カフェ|コーヒー|スタバ|スターバックス|ドトール/.test(v)) return '会議費';
+        if (/apple|dell|lenovo|hp|pc|mac|ヨドバシ|ビックカメラ|ヤマダ/.test(v)) return '消耗品費'; // Could be 工具器具備品, but default to safe consumption
+        if (/aws|google|adobe|slack|notion|zoom|kintone|freee|マネーフォワード/.test(v)) return '通信費'; // or システム利用料
+        if (/server|domain|host|sakura|onamae|godaddy/.test(v)) return '通信費';
+        if (/amazon|アスクル|モノタロウ|文具/.test(v)) return '消耗品費';
+        if (/セミナー|研修|udemy|coursera/.test(v)) return '研修費';
+        if (/手数料|振込|登記/.test(v)) return '支払手数料';
+        if (/法務局|公証役場/.test(v)) return '創立費';
         return '雑費';
     };
 
@@ -192,13 +199,22 @@ export default function NewExpensePage() {
                                             value={formData.category}
                                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                         >
-                                            <option value="消耗品費">消耗品費</option>
+                                            <option value="創立費">創立費 (定款認証・登録免許税等)</option>
+                                            <option value="開業費">開業費 (その他開業準備費用)</option>
+                                            <option disabled className="text-slate-500">--- 経常費用 ---</option>
+                                            <option value="消耗品費">消耗品費 (10万円未満のPC等)</option>
+                                            <option value="工具器具備品">工具器具備品 (10万円以上のPC・家具)</option>
                                             <option value="旅費交通費">旅費交通費</option>
-                                            <option value="会議費">会議費</option>
+                                            <option value="通信費">通信費 (サーバー・ドメイン・電話)</option>
+                                            <option value="会議費">会議費 (5000円以下の飲食等)</option>
                                             <option value="交際費">交際費</option>
-                                            <option value="通信費">通信費</option>
                                             <option value="新聞図書費">新聞図書費</option>
+                                            <option value="研修費">研修費 (セミナー・書籍)</option>
+                                            <option value="広告宣伝費">広告宣伝費</option>
                                             <option value="支払手数料">支払手数料</option>
+                                            <option value="地代家賃">地代家賃</option>
+                                            <option value="水道光熱費">水道光熱費</option>
+                                            <option value="外注工賃">外注工賃 (業務委託等)</option>
                                             <option value="システム利用料">システム利用料</option>
                                             <option value="雑費">雑費</option>
                                         </select>
