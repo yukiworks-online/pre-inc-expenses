@@ -1,0 +1,155 @@
+'use server';
+
+import { extractReceiptData } from '@/lib/gemini';
+import { adminStorage } from '@/lib/firebase-admin';
+import { getSheet } from '@/lib/sheets';
+import { randomUUID } from 'crypto';
+
+export async function processReceipt(formData: FormData) {
+    try {
+        const file = formData.get('file') as File;
+        if (!file) {
+            throw new Error('No file uploaded');
+        }
+
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const mimeType = file.type;
+        const fileName = `receipts/${Date.now()}_${file.name}`;
+
+        // 1. Upload to Firebase Storage
+        const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
+        console.log(`[Upload] Target Bucket: ${bucketName}`);
+
+        const bucket = adminStorage.bucket(bucketName);
+        const fileRef = bucket.file(fileName);
+
+        await fileRef.save(buffer, {
+            contentType: mimeType,
+            metadata: {
+                contentType: mimeType
+            }
+        });
+
+        // Generate Signed URL (valid for 7 days)
+        const [signedUrl] = await fileRef.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
+        });
+
+        console.log(`[Upload] Success Firebase: ${signedUrl}`);
+
+        // 2. Extract Data using Gemini
+        const extractedData = await extractReceiptData(buffer, mimeType);
+
+        return {
+            success: true,
+            data: extractedData,
+            fileId: fileName,
+            fileUrl: signedUrl,
+            contentUrl: signedUrl
+        };
+    } catch (error: any) {
+        console.error("Receipt processing failed:", error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+export type ExpenseData = {
+    id?: string;
+    date: string;
+    vendor: string;
+    amount: number;
+    currency: string;
+    description: string;
+    payer: string;
+    category: string;
+    receiptUrl?: string;
+    status?: string;
+    settlementId?: string;
+};
+
+
+export async function registerExpense(data: ExpenseData) {
+    try {
+        const sheet = await getSheet('Expenses');
+
+        const newExpense = {
+            expense_id: randomUUID(),
+            incurred_date: data.date,
+            payer: data.payer,
+            vendor: data.vendor,
+            description: data.description,
+            amount_gross: data.amount,
+            currency: data.currency,
+            payment_method: 'Cash/Personal Card',
+            receipt_url: data.receiptUrl || '',
+            category: data.category,
+            pre_incorporation: 'TRUE',
+            settlement_status: 'UNSETTLED',
+            settlement_id: '',
+            ai_extract_status: 'VERIFIED',
+            created_at: new Date().toISOString()
+        };
+
+        await sheet.addRow(newExpense);
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Failed to save expense:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function getExpenses() {
+    try {
+        const sheet = await getSheet('Expenses');
+        const rows = await sheet.getRows();
+
+        // Map sheet rows to ExpenseData
+        const expenses: ExpenseData[] = rows.map((row) => ({
+            id: row.get('expense_id'),
+            date: row.get('incurred_date'),
+            vendor: row.get('vendor'),
+            amount: Number(row.get('amount_gross') || 0),
+            currency: row.get('currency'),
+            description: row.get('description'),
+            payer: row.get('payer'),
+            category: row.get('category'),
+            receiptUrl: row.get('receipt_url'),
+            status: row.get('settlement_status') || 'UNSETTLED',
+            settlementId: row.get('settlement_id'),
+        })).reverse(); // Show newest first
+
+        return { success: true, data: expenses };
+    } catch (error: any) {
+        console.error("Failed to fetch expenses:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function createSettlement(expenseIds: string[]) {
+    try {
+        const sheet = await getSheet('Expenses');
+        const rows = await sheet.getRows();
+        const settlementId = `ST-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomUUID().slice(0, 4).toUpperCase()}`;
+        let count = 0;
+
+        for (const row of rows) {
+            // Check if this row is one of the target expenses
+            if (expenseIds.includes(row.get('expense_id'))) {
+                row.set('settlement_status', 'SETTLED');
+                row.set('settlement_id', settlementId);
+                await row.save();
+                count++;
+            }
+        }
+
+        return { success: true, settlementId, count };
+    } catch (error: any) {
+        console.error("Settlement failed:", error);
+        return { success: false, error: error.message };
+    }
+}
