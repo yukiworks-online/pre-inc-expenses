@@ -1,7 +1,7 @@
 'use server';
 
 import { extractReceiptData } from '@/lib/gemini';
-import { adminStorage } from '@/lib/firebase-admin';
+import { getAdminStorage } from '@/lib/firebase-admin';
 import { getSheet } from '@/lib/sheets';
 import { randomUUID } from 'crypto';
 
@@ -20,7 +20,7 @@ export async function processReceipt(formData: FormData) {
         const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
         console.log(`[Upload] Target Bucket: ${bucketName}`);
 
-        const bucket = adminStorage.bucket(bucketName);
+        const bucket = getAdminStorage().bucket(bucketName);
         const fileRef = bucket.file(fileName);
 
         await fileRef.save(buffer, {

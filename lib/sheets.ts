@@ -1,25 +1,29 @@
 import { GoogleSpreadsheet } from 'google-spreadsheet';
 import { JWT } from 'google-auth-library';
 
-// Config variables
-const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'); // Handle escaped newlines
-const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
-if (!SERVICE_ACCOUNT_EMAIL || !PRIVATE_KEY || !SHEET_ID) {
-  // It's okay to log this on build time, but runtime it will fail
-  console.warn("Missing Google Sheets Credentials");
+let docInstance: GoogleSpreadsheet | null = null;
+
+export async function getDoc() {
+  if (docInstance) return docInstance;
+
+  const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  const SHEET_ID = process.env.GOOGLE_SHEET_ID;
+
+  if (!SERVICE_ACCOUNT_EMAIL || !PRIVATE_KEY || !SHEET_ID) {
+    throw new Error('Missing Google Sheets Credentials (GOOGLE_SERVICE_ACCOUNT_EMAIL, GOOGLE_PRIVATE_KEY, or GOOGLE_SHEET_ID)');
+  }
+
+  const auth = new JWT({
+    email: SERVICE_ACCOUNT_EMAIL,
+    key: PRIVATE_KEY,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  });
+
+  docInstance = new GoogleSpreadsheet(SHEET_ID, auth);
+  return docInstance;
 }
-
-const auth = new JWT({
-  email: SERVICE_ACCOUNT_EMAIL,
-  key: PRIVATE_KEY,
-  scopes: [
-    'https://www.googleapis.com/auth/spreadsheets',
-  ],
-});
-
-export const doc = new GoogleSpreadsheet(SHEET_ID || "", auth);
 
 export const HEADERS = {
   EXPENSES: [
@@ -34,6 +38,7 @@ export const HEADERS = {
 };
 
 export async function getSheet(title: string) {
+  const doc = await getDoc();
   await doc.loadInfo();
   let sheet = doc.sheetsByTitle[title];
   if (!sheet) {
@@ -43,6 +48,7 @@ export async function getSheet(title: string) {
 }
 
 export async function initializeSheets() {
+  const doc = await getDoc();
   await doc.loadInfo();
 
   // Expenses Sheet
