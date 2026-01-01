@@ -11,28 +11,29 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// If we are on the server (build time) or missing keys, we might still initialize 
-// but auth functions won't work. valid API key format might be checked by SDK?
-// If it fails with "invalid-api-key", the SDK checks format likely.
 const app = getApps().length
     ? getApp()
     : initializeApp(firebaseConfig);
 
-let auth: Auth;
-try {
-    auth = getAuth(app);
-} catch (e) {
-    console.warn("Firebase Auth init failed (expected during build without env vars):", e);
-    // Provide a minimal mock if instantiation fails, to allow imports to proceed
-    // However, getAuth returns an interface. We might just leave it undefined
-    // and handle it in consumers, or cast a mock.
-    // But usually getAuth(app) only fails if api key is structurally invalid.
-    // With the fake key, it should pass the synchronous check.
+let auth: Auth | undefined;
+
+// Only initialize Auth if we have a real-looking key (not our mock)
+// This strictly prevents theSDK from throwing "auth/invalid-api-key" during Vercel build
+if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("MockKey")) {
+    try {
+        auth = getAuth(app);
+    } catch (e) {
+        console.warn("Firebase Auth init failed:", e);
+    }
+} else {
+    console.warn("Using Mock API Key or missing key: Skipping Firebase Auth initialization for build.");
 }
+
 export { auth };
 export const googleProvider = new GoogleAuthProvider();
 
 export const signInWithGoogle = async () => {
+    if (!auth) throw new Error("Firebase Auth not initialized");
     try {
         const result = await signInWithPopup(auth, googleProvider);
         return result.user;
@@ -43,6 +44,7 @@ export const signInWithGoogle = async () => {
 };
 
 export const signOut = async () => {
+    if (!auth) return;
     try {
         await firebaseSignOut(auth);
     } catch (error) {
