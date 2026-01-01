@@ -24,7 +24,7 @@ export default function AccountPage() {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!auth.currentUser) return;
+        if (!auth?.currentUser) return;
 
         setIsSaving(true);
         setMessage(null);
