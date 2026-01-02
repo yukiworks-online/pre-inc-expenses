@@ -26,7 +26,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (!auth) {
-            console.warn("Auth not initialized, skipping subscription (build/error state)");
+            console.error("Firebase Auth not initialized. Check NEXT_PUBLIC_FIREBASE_API_KEY.");
+            if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+                alert("システムエラー: 認証機能が初期化されていません。\n管理者にお問い合わせください。(API Key Missing)");
+            }
             setLoading(false);
             return;
         }
