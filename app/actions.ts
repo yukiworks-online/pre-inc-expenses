@@ -189,3 +189,29 @@ export async function deleteExpenses(expenseIds: string[]) {
     }
 }
 
+export async function rejectSettlement(settlementId: string) {
+    if (!settlementId) return { success: false, error: 'Settlement ID is required' };
+
+    try {
+        const sheet = await getSheet('Expenses');
+        const rows = await sheet.getRows();
+
+        // Find all rows with this settlement ID
+        const targetRows = rows.filter(r => r.get('settlement_id') === settlementId);
+
+        if (targetRows.length === 0) {
+            return { success: false, error: 'Settlement not found' };
+        }
+
+        for (const row of targetRows) {
+            row.set('settlement_status', 'UNSETTLED');
+            row.set('settlement_id', '');
+            await row.save();
+        }
+
+        return { success: true, count: targetRows.length };
+    } catch (error: any) {
+        console.error("Failed to reject settlement:", error);
+        return { success: false, error: error.message };
+    }
+}

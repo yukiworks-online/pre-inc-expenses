@@ -1,5 +1,6 @@
 import { getExpenses } from '@/app/actions';
 import { PrintButton } from '../PrintButton';
+import { RejectButton } from '../RejectButton';
 import Link from 'next/link';
 import AuthGuard from '@/components/AuthGuard';
 
@@ -199,6 +200,9 @@ export default async function SettlementReportPage({ params }: { params: { id: s
                     >
                         &larr; 一覧へ戻る
                     </Link>
+                    <div className="pointer-events-auto">
+                        <RejectButton settlementId={id} />
+                    </div>
                     <div className="pointer-events-auto">
                         <PrintButton />
                     </div>
