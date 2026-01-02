@@ -153,3 +153,25 @@ export async function createSettlement(expenseIds: string[]) {
         return { success: false, error: error.message };
     }
 }
+
+export async function deleteExpense(expenseId: string) {
+    try {
+        const sheet = await getSheet('Expenses');
+        const rows = await sheet.getRows();
+        const row = rows.find(r => r.get('expense_id') === expenseId);
+
+        if (!row) {
+            return { success: false, error: 'Expense not found' };
+        }
+
+        if (row.get('settlement_status') === 'SETTLED') {
+            return { success: false, error: 'Cannot delete settled expenses' };
+        }
+
+        await row.delete();
+        return { success: true };
+    } catch (error: any) {
+        console.error("Failed to delete expense:", error);
+        return { success: false, error: error.message };
+    }
+}

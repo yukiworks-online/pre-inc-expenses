@@ -1,6 +1,7 @@
 
 import { getExpenses } from '@/app/actions';
 import { SettlementButton } from './SettlementButton';
+import { DeleteExpenseButton } from './DeleteExpenseButton';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
@@ -58,9 +59,12 @@ export default async function SettlementsPage() {
                                         <p className="text-xs text-slate-400 font-mono">{expense.date} • {expense.category}</p>
                                     </div>
                                 </div>
-                                <div className="text-right">
+                                <div className="text-right flex flex-col items-end gap-1">
                                     <p className="font-bold text-white font-mono">¥{expense.amount.toLocaleString()}</p>
-                                    <p className="text-xs text-emerald-400">未精算</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-xs text-emerald-400">未精算</p>
+                                        <DeleteExpenseButton expenseId={expense.id as string} />
+                                    </div>
                                 </div>
                             </div>
                         ))}
