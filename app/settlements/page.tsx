@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function SettlementsPage() {
     const { success, data: expenses, error } = await getExpenses();
