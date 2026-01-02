@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { deleteExpenses } from '@/app/actions';
-import { SettlementButton } from './SettlementButton';
+import { deleteExpenses, createSettlement } from '@/app/actions';
 import { useRouter } from 'next/navigation';
 import { type Expense } from '@/app/actions';
 import { useAuth } from '@/components/AuthProvider';
@@ -11,6 +10,7 @@ export function UnsettledExpenseList({ expenses }: { expenses: Expense[] }) {
     const { user, loading } = useAuth();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isSettling, setIsSettling] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -60,6 +60,27 @@ export function UnsettledExpenseList({ expenses }: { expenses: Expense[] }) {
         }
     };
 
+    // Settlement Action
+    const handleSettlement = async () => {
+        if (selectedIds.length === 0) return;
+        if (!confirm('選択した経費をすべて「精算済み」にして、精算書を作成しますか？')) return;
+
+        setIsSettling(true);
+        try {
+            const result = await createSettlement(selectedIds);
+            if (result.success) {
+                router.push(`/settlements/${result.settlementId}`);
+            } else {
+                alert('精算に失敗しました: ' + result.error);
+                setIsSettling(false);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('予期せぬエラー');
+            setIsSettling(false);
+        }
+    };
+
     const totalSelectedAmount = expenses
         .filter(e => selectedIds.includes(e.id as string))
         .reduce((sum, e) => sum + e.amount, 0);
@@ -86,11 +107,11 @@ export function UnsettledExpenseList({ expenses }: { expenses: Expense[] }) {
                 </div>
 
                 <div className="flex gap-3">
-                    {/* Delete Button (Only visible when items selected) */}
+                    {/* Delete Button */}
                     {selectedIds.length > 0 && (
                         <button
                             onClick={handleBulkDelete}
-                            disabled={isDeleting}
+                            disabled={isDeleting || isSettling}
                             className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 transition-all font-medium text-sm animate-in fade-in"
                         >
                             {isDeleting ? '削除中...' : (
@@ -105,13 +126,14 @@ export function UnsettledExpenseList({ expenses }: { expenses: Expense[] }) {
                         </button>
                     )}
 
-                    {/* Settlement Button (Delegate execution to existing component logic or just wrap it) 
-                        The existing SettlementButton takes expenseIds directly.
-                        We can control it here.
-                    */}
-                    <div className={selectedIds.length === 0 ? "opacity-50 pointer-events-none" : ""}>
-                        <SettlementButton expenseIds={selectedIds} />
-                    </div>
+                    {/* Settlement Button */}
+                    <button
+                        onClick={handleSettlement}
+                        disabled={selectedIds.length === 0 || isSettling || isDeleting}
+                        className={`btn btn-primary text-base transition-all ${selectedIds.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                        {isSettling ? '処理中...' : '精算を実行 (Create PDF)'}
+                    </button>
                 </div>
             </div>
 
