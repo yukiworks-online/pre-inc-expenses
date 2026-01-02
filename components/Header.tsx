@@ -41,7 +41,7 @@ export function Header() {
                                     "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
                                     isActive
                                         ? "text-white bg-white/10 shadow-sm"
-                                        : "text-slate-400 hover:text-white hover:bg-white/5"
+                                        : "text-slate-300 hover:text-white hover:bg-white/5"
                                 )}
                             >
                                 {item.name}
@@ -54,9 +54,9 @@ export function Header() {
                 <div className="flex items-center gap-4">
                     {user ? (
                         <div className="flex items-center gap-3">
-                            <span className="text-xs text-slate-500 hidden sm:inline-block">
+                            <Link href="/account" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:inline-block">
                                 {user.displayName}
-                            </span>
+                            </Link>
                             <button
                                 onClick={() => signOut()}
                                 className="btn btn-secondary py-1 px-3 text-xs h-8"
