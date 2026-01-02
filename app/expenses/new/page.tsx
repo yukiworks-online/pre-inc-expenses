@@ -23,7 +23,7 @@ export default function NewExpensePage() {
         currency: 'JPY',
         description: '',
         payer: '', // Initialize empty, set in useEffect
-        category: '消耗品費',
+        category: '創業費',
         receiptUrl: ''
     });
 
@@ -192,13 +192,21 @@ export default function NewExpensePage() {
                                             value={formData.category}
                                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                         >
+                                            <option value="創業費">創業費</option>
+                                            <option value="開業費">開業費</option>
                                             <option value="消耗品費">消耗品費</option>
                                             <option value="旅費交通費">旅費交通費</option>
                                             <option value="会議費">会議費</option>
                                             <option value="交際費">交際費</option>
                                             <option value="通信費">通信費</option>
+                                            <option value="地代家賃">地代家賃</option>
+                                            <option value="水道光熱費">水道光熱費</option>
+                                            <option value="広告宣伝費">広告宣伝費</option>
                                             <option value="新聞図書費">新聞図書費</option>
                                             <option value="支払手数料">支払手数料</option>
+                                            <option value="租税公課">租税公課</option>
+                                            <option value="車両費">車両費</option>
+                                            <option value="外注工賃">外注工賃</option>
                                             <option value="システム利用料">システム利用料</option>
                                             <option value="雑費">雑費</option>
                                         </select>
