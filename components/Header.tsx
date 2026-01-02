@@ -41,7 +41,7 @@ export function Header() {
                                     "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
                                     isActive
                                         ? "text-white bg-white/10 shadow-sm"
-                                        : "text-slate-300 hover:text-white hover:bg-white/5"
+                                        : "text-white/70 hover:text-white hover:bg-white/5"
                                 )}
                             >
                                 {item.name}
@@ -54,7 +54,7 @@ export function Header() {
                 <div className="flex items-center gap-4">
                     {user ? (
                         <div className="flex items-center gap-3">
-                            <Link href="/account" className="text-sm font-medium text-slate-300 hover:text-white transition-colors hidden sm:inline-block">
+                            <Link href="/account" className="text-sm font-medium text-white/80 hover:text-white transition-colors hidden sm:inline-block">
                                 {user.displayName}
                             </Link>
                             <button
