@@ -24,13 +24,15 @@ export default function AccountPage() {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!auth.currentUser) return;
+        const currentUser = auth?.currentUser;
+
+        if (!currentUser) return;
 
         setIsSaving(true);
         setMessage(null);
 
         try {
-            await updateProfile(auth.currentUser, {
+            await updateProfile(currentUser, {
                 displayName: displayName
             });
 
