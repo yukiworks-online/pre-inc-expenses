@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { deleteExpense } from '@/app/actions';
+import { deleteExpenses } from '@/app/actions';
 import { useRouter } from 'next/navigation';
 
 export function DeleteExpenseButton({ expenseId }: { expenseId: string }) {
@@ -13,7 +13,7 @@ export function DeleteExpenseButton({ expenseId }: { expenseId: string }) {
 
         setIsDeleting(true);
         try {
-            const result = await deleteExpense(expenseId);
+            const result = await deleteExpenses([expenseId]);
             if (result.success) {
                 router.refresh();
             } else {
@@ -31,7 +31,7 @@ export function DeleteExpenseButton({ expenseId }: { expenseId: string }) {
         <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="text-white/40 hover:text-red-400 hover:bg-red-500/20 p-3 rounded-full transition-all disabled:opacity-50 group ml-2"
+            className="text-slate-400 hover:text-red-400 bg-white/5 hover:bg-red-500/10 border border-white/10 p-2.5 rounded-lg transition-all disabled:opacity-50 ml-4 shrink-0 flex items-center justify-center h-10 w-10 hover:border-red-500/30"
             title="削除"
         >
             {isDeleting ? (

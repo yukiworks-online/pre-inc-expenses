@@ -71,6 +71,8 @@ export type ExpenseData = {
     settlementId?: string;
 };
 
+export type Expense = ExpenseData;
+
 
 export async function registerExpense(data: ExpenseData) {
     try {
@@ -154,24 +156,32 @@ export async function createSettlement(expenseIds: string[]) {
     }
 }
 
-export async function deleteExpense(expenseId: string) {
+
+export async function deleteExpenses(expenseIds: string[]) {
     try {
         const sheet = await getSheet('Expenses');
         const rows = await sheet.getRows();
-        const row = rows.find(r => r.get('expense_id') === expenseId);
+        const targetRows = rows.filter(r => expenseIds.includes(r.get('expense_id')));
 
-        if (!row) {
-            return { success: false, error: 'Expense not found' };
+        if (targetRows.length === 0) {
+            return { success: false, error: 'Target expenses not found' };
         }
 
-        if (row.get('settlement_status') === 'SETTLED') {
+        // Check for already settled expenses
+        const settled = targetRows.find(r => r.get('settlement_status') === 'SETTLED');
+        if (settled) {
             return { success: false, error: 'Cannot delete settled expenses' };
         }
 
-        await row.delete();
+        // Delete all target rows (in reverse order to preserve indices if that mattered, but row objects handle it)
+        for (const row of targetRows) {
+            await row.delete();
+        }
+
         return { success: true };
     } catch (error: any) {
-        console.error("Failed to delete expense:", error);
+        console.error("Failed to delete expenses:", error);
         return { success: false, error: error.message };
     }
 }
+
