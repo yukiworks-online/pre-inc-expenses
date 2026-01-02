@@ -215,3 +215,23 @@ export async function rejectSettlement(settlementId: string) {
         return { success: false, error: error.message };
     }
 }
+
+export async function unsetExpense(expenseId: string) {
+    try {
+        const sheet = await getSheet('Expenses');
+        const rows = await sheet.getRows();
+        const row = rows.find(r => r.get('expense_id') === expenseId);
+
+        if (!row) return { success: false, error: 'Expense not found' };
+
+        row.set('settlement_status', 'UNSETTLED');
+        row.set('settlement_id', '');
+        await row.save();
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Failed to unset expense:", error);
+        return { success: false, error: error.message };
+    }
+}
+

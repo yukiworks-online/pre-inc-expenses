@@ -2,6 +2,7 @@ import { getExpenses } from '@/app/actions';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import AuthGuard from '@/components/AuthGuard';
+import { ExpenseRowActions } from './ExpenseRowActions';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,7 @@ export default async function ExpensesPage() {
                                     <th className="px-6 py-4 font-medium text-right">金額</th>
                                     <th className="px-6 py-4 font-medium">立替者</th>
                                     <th className="px-6 py-4 font-medium text-center">証憑</th>
+                                    <th className="px-6 py-4 font-medium text-center">操作</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5">
@@ -113,6 +115,13 @@ export default async function ExpensesPage() {
                                                 ) : (
                                                     <span className="text-slate-700">-</span>
                                                 )}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <ExpenseRowActions
+                                                    expenseId={expense.id!}
+                                                    status={expense.status || 'UNSETTLED'}
+                                                    settlementId={expense.settlementId}
+                                                />
                                             </td>
                                         </tr>
                                     ))

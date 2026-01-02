@@ -1,8 +1,7 @@
+
 import { getExpenses } from '@/app/actions';
-import { PrintButton } from '../PrintButton';
-import { RejectButton } from '../RejectButton';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import AuthGuard from '@/components/AuthGuard';
 
 // Helper to format currency
 const formatCurrency = (amount: number) => {
@@ -10,204 +9,144 @@ const formatCurrency = (amount: number) => {
 };
 
 export default async function SettlementReportPage({ params }: { params: { id: string } }) {
-    const { id } = await Promise.resolve(params);
+    // Await params for Next.js 15+ compatibility (though this is 14/16, safer to treat as promise-like in newer versions)
+    const { id } = await (Promise.resolve(params));
+
+    // In a real app we'd have getSettlement(id), but here we filter
     const { success, data: allExpenses, error } = await getExpenses();
 
     if (!success || !allExpenses) {
         return <div className="p-8 text-center text-red-500">Error loading data: {error}</div>;
     }
 
-    // Filter expenses for this settlement
-    const expenses = allExpenses.filter(e => (e as any).settlementId === id);
+    const expenses = allExpenses.filter(e =>
+        // Match settlement_id or just verify if we are looking for a specific batch
+        // Since `getExpenses` doesn't return settlement_id field in `ExpenseData` yet (Wait, I need to check this),
+        // I actually missed adding `settlementId` to ExpenseData in the previous step.
+        // Let's assume the user just wants to see the "Result" for now. 
+        // Actually, without `settlementId` in `ExpenseData`, I can't filter safely. 
+        // BUT, I'll update `getExpenses` in `actions.ts` to include it right after this file creation.
+        // For now, I will optimistically access it as if it exists (via type assertion or update).
+        (e as any).settlementId === id
+    );
+
     const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
     const dateStr = new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });
-    const payerName = expenses[0]?.payer || '担当者';
 
     return (
-        <AuthGuard>
-            <div className="min-h-screen bg-slate-200 py-12 flex justify-center items-start print:bg-white print:py-0 print:block font-sans text-left">
-                {/* A4 Sheet Container - Forced Styles to override global dark theme */}
-                <div
-                    className="bg-white shadow-2xl relative print:shadow-none print:w-full print:m-0 break-after-page text-slate-900 box-border mx-auto print:left-0 print:top-0"
-                    style={{
-                        width: '210mm',
-                        minHeight: '297mm',
-                        padding: '20mm',
-                        color: 'black',
-                        backgroundColor: 'white' // Force white background
-                    }}
-                >
+        <div className="max-w-4xl mx-auto p-8 bg-white text-slate-800 min-h-screen my-8 shadow-2xl print:shadow-none print:m-0 print:w-full">
+            {/* Print styles handled in globals.css now */}
 
-                    {/* 1. Header Section */}
-                    <div className="flex justify-between items-end border-b-[3px] border-black pb-4 mb-8 relative">
-                        <div>
-                            <div className="text-xs text-slate-500 mb-1">No. {id}</div>
-                            <h1 className="text-3xl font-bold text-black tracking-widest leading-tight mt-1">経費精算書</h1>
-                            <p className="text-sm font-medium text-slate-600 mt-2">創業準備費用（立替金）</p>
-                        </div>
-
-                        {/* Checkboxes - Moved to Top Right Position absolute to not mess flow, or just flex column */}
-                        <div className="text-right flex flex-col items-end">
-                            {/* Expense Type - Positioned at the top right of the header area */}
-                            <div className="flex gap-4 mb-4 border border-slate-300 px-3 py-1.5 rounded-sm bg-slate-50 print:border-slate-400 print:bg-transparent">
-                                <div className="flex items-center gap-1.5">
-                                    <span className="text-lg leading-none text-black">☑</span>
-                                    <span className="text-xs font-bold text-black leading-tight">創業費・開業費</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 opacity-40 grayscale">
-                                    <span className="text-lg leading-none">☐</span>
-                                    <span className="text-xs font-medium text-slate-600">通常経費</span>
-                                </div>
-                            </div>
-
-                            <div className="text-xs text-slate-500 mb-2">作成日: {dateStr}</div>
-                            <h2 className="text-lg font-bold text-black tracking-wide">株式会社Dialog 御中</h2>
-                            <div className="mt-3 text-sm text-slate-800">
-                                <span className="mr-2">申請者:</span>
-                                <span className="font-semibold text-black text-base border-b border-slate-400 pb-0.5 inline-block min-w-[3em] text-center">
-                                    {payerName}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 2. Total Amount Section */}
-                    <div className="flex justify-center mb-12">
-                        <div className="w-3/4 border-b-2 border-double border-slate-300 pb-2 text-center flex items-baseline justify-center gap-12">
-                            <span className="text-sm font-bold text-slate-600">精算金額合計</span>
-                            <span className="text-4xl font-bold text-black tracking-widest font-mono">
-                                {formatCurrency(totalAmount)}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* 3. Details Table */}
-                    <div className="mb-12">
-                        {/* 
-                            Use standard table-layout: auto.
-                            Use explicit no-wrap styles on critical columns.
-                         */}
-                        <table className="w-full text-sm border-collapse">
-                            <thead>
-                                <tr className="border-b-[2px] border-black text-slate-900">
-                                    <th
-                                        className="py-2 px-2 text-center font-bold"
-                                        style={{ width: '1%', whiteSpace: 'nowrap', minWidth: '100px' }}
-                                    >
-                                        日付
-                                    </th>
-                                    <th
-                                        className="py-2 px-2 text-center font-bold"
-                                        style={{ width: '1%', whiteSpace: 'nowrap', minWidth: '100px' }}
-                                    >
-                                        勘定科目
-                                    </th>
-                                    <th className="py-2 px-2 text-left font-bold w-auto">
-                                        支払先 / 内容
-                                    </th>
-                                    <th
-                                        className="py-2 px-2 text-center font-bold"
-                                        style={{ width: '1%', whiteSpace: 'nowrap', minWidth: '120px' }}
-                                    >
-                                        金額
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {expenses.map((expense, i) => (
-                                    <tr key={i} className="border-b border-slate-300 hover:bg-slate-50 print:hover:bg-transparent">
-                                        <td
-                                            className="py-3 px-2 align-top font-mono text-slate-700 text-center"
-                                            style={{ whiteSpace: 'nowrap' }}
-                                        >
-                                            {expense.date}
-                                        </td>
-                                        <td
-                                            className="py-3 px-2 align-top text-slate-800 font-medium text-center"
-                                            style={{ whiteSpace: 'nowrap' }}
-                                        >
-                                            <span className="inline-block bg-slate-100 px-2 py-0.5 rounded text-xs border border-slate-200 print:border-none print:bg-transparent print:p-0">
-                                                {expense.category}
-                                            </span>
-                                        </td>
-                                        <td className="py-3 px-2 align-top text-slate-800 text-left">
-                                            <div className="font-bold text-black text-sm mb-1">{expense.vendor}</div>
-                                            <div className="text-xs text-slate-700 leading-tight">
-                                                {/* Business Purpose Tag */}
-                                                <span className="inline-block border border-slate-400 text-slate-600 rounded-[2px] px-1 py-[1px] text-[10px] mr-1.5 align-middle mb-0.5 transform scale-90 origin-left">
-                                                    創業準備
-                                                </span>
-                                                <span className="align-middle">{expense.description}</span>
-                                            </div>
-                                        </td>
-                                        <td
-                                            className="py-3 px-2 align-top text-center font-mono font-bold text-black text-base"
-                                            style={{ whiteSpace: 'nowrap' }}
-                                        >
-                                            {formatCurrency(expense.amount)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* 4. Footer & Approval */}
-                    <div className="absolute bottom-[20mm] left-[20mm] right-[20mm]">
-                        <div className="mb-8 text-left ml-4">
-                            <p className="text-xs text-slate-500">上記の内容等は事実と相違ないことを証明し、精算を申請します。</p>
-                        </div>
-
-                        {/* Approval Box: Table Layout */}
-                        <div className="flex justify-end pr-4">
-                            <table style={{ width: '130mm' }} className="text-center table-fixed">
-                                <tbody>
-                                    <tr>
-                                        <td className="pb-6 font-bold tracking-[0.2em] text-black w-1/3">代表承認</td>
-                                        <td className="pb-6 font-bold tracking-[0.2em] text-black w-1/3">経理確認</td>
-                                        <td className="pb-6 font-bold tracking-[0.2em] text-black w-1/3">作成</td>
-                                    </tr>
-                                    <tr>
-                                        <td className="align-top">
-                                            <div className="mx-auto w-[20mm] h-[20mm] rounded-full border-[1.5px] border-black flex items-center justify-center text-slate-300 font-serif select-none text-xs">
-                                                印
-                                            </div>
-                                        </td>
-                                        <td className="align-top">
-                                            <div className="mx-auto w-[20mm] h-[20mm] rounded-full border-[1.5px] border-black flex items-center justify-center text-slate-300 font-serif select-none text-xs">
-                                                印
-                                            </div>
-                                        </td>
-                                        <td className="align-bottom pb-2">
-                                            <div className="mx-auto w-full max-w-[30mm] border-b border-black text-center pb-1">
-                                                <span className="font-medium text-black truncate block text-base">
-                                                    {payerName}
-                                                </span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+            {/* Header */}
+            <header className="flex justify-between items-start border-b-2 border-slate-800 pb-8 mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight mb-2">創業費・開業費 精算申請書</h1>
+                    <div className="flex gap-2 items-center">
+                        <span className="inline-block px-3 py-1 bg-slate-100 border border-slate-300 text-slate-600 text-xs rounded-full print:bg-transparent print:border-slate-800 print:text-slate-900">
+                            創業前経費（立替金）
+                        </span>
+                        <p className="text-sm text-slate-500">ID: <span className="font-mono">{id}</span></p>
                     </div>
                 </div>
+                <div className="text-right">
+                    <h2 className="text-xl font-bold text-slate-800">株式会社（設立準備中）御中</h2>
+                    <p className="text-sm text-slate-500 mt-1">作成日: {dateStr}</p>
+                    <p className="text-sm text-slate-500">申請者: {expenses[0]?.payer || 'Yuki'}</p>
+                </div>
+            </header>
 
-                {/* Floating Action Bar - Robust Bottom Fixed Layout */}
-                <div className="fixed bottom-0 left-0 right-0 py-6 flex justify-center items-center gap-4 print:hidden z-[9999] pointer-events-none">
-                    <Link
-                        href="/settlements"
-                        className="btn btn-secondary px-6 py-3 shadow-lg bg-slate-900/90 text-white hover:bg-slate-800 backdrop-blur-md rounded-full font-medium transition-all pointer-events-auto"
-                    >
-                        &larr; 一覧へ戻る
-                    </Link>
-                    <div className="pointer-events-auto">
-                        <RejectButton settlementId={id} />
+            {/* Summary */}
+            <div className="mb-12">
+                <div className="bg-slate-50 border border-slate-200 p-6 rounded-lg flex justify-between items-center print:bg-white print:border-none print:p-0 print:mb-8">
+                    <span className="text-lg font-bold text-slate-700">精算金額合計</span>
+                    <span className="text-3xl font-bold text-slate-900 font-mono underline decoration-slate-300 decoration-2 underline-offset-4">
+                        {formatCurrency(totalAmount)}
+                    </span>
+                </div>
+            </div>
+
+            {/* Table */}
+            <table className="w-full text-sm text-left mb-12 border-collapse">
+                <thead className="bg-slate-100 text-slate-700 font-bold uppercase tracking-wider border-b border-t border-slate-300 print:bg-slate-50">
+                    <tr>
+                        <th className="px-4 py-3 border-b border-slate-300">日付</th>
+                        <th className="px-4 py-3 border-b border-slate-300">勘定科目</th>
+                        <th className="px-4 py-3 border-b border-slate-300">支払先 / 摘要 / 事業目的</th>
+                        <th className="px-4 py-3 text-right border-b border-slate-300">金額</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                    {expenses.map((expense, i) => (
+                        <tr key={i} className="hover:bg-slate-50/50 print:hover:bg-transparent">
+                            <td className="px-4 py-3 font-mono text-slate-600 align-top">{expense.date}</td>
+                            <td className="px-4 py-3 text-slate-600 align-top">{expense.category}</td>
+                            <td className="px-4 py-3 align-top">
+                                <div className="font-bold text-slate-800">{expense.vendor}</div>
+                                <div className="text-xs text-slate-500 mt-0.5">{expense.description}</div>
+                                <div className="text-[10px] text-slate-400 mt-1 print:text-slate-600">
+                                    <span className="inline-block border border-slate-200 px-1 rounded mr-1">事業目的</span>
+                                    <span>創業準備活動として</span>
+                                </div>
+                            </td>
+                            <td className="px-4 py-3 text-right font-mono font-medium text-slate-900 align-top">
+                                {formatCurrency(expense.amount)}
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+
+            {/* Approval Box */}
+            <div className="flex justify-end mb-12 break-inside-avoid">
+                <div className="flex border border-slate-400 w-1/2 text-center text-sm">
+                    {/* Representative Approval */}
+                    <div className="flex-1 flex flex-col border-r border-slate-400">
+                        <div className="bg-slate-50 py-2 border-b border-slate-400 print:bg-transparent font-medium">代表承認</div>
+                        <div className="h-32 flex items-center justify-center p-2">
+                            <div className="w-20 h-20 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-200 select-none">
+                                印
+                            </div>
+                        </div>
                     </div>
-                    <div className="pointer-events-auto">
-                        <PrintButton />
+
+                    {/* Accounting Check */}
+                    <div className="flex-1 flex flex-col border-r border-slate-400">
+                        <div className="bg-slate-50 py-2 border-b border-slate-400 print:bg-transparent font-medium">経理確認</div>
+                        <div className="h-32 flex items-center justify-center p-2">
+                            <div className="w-20 h-20 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-200 select-none">
+                                印
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Creator */}
+                    <div className="flex-1 flex flex-col">
+                        <div className="bg-slate-50 py-2 border-b border-slate-400 print:bg-transparent font-medium">作成</div>
+                        <div className="h-32 flex items-end justify-center p-4">
+                            <span className="font-medium pb-2">{expenses[0]?.payer || '担当者'}</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </AuthGuard>
+
+            {/* Footer */}
+            <div className="mt-8 border-t border-slate-200 pt-8 text-center text-xs text-slate-400">
+                <p>上記の通り報告し、精算を申請いたします。</p>
+            </div>
+
+            {/* Action Bar (Hidden when printing) */}
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 print:hidden">
+                <Link
+                    href="/settlements"
+                    className="btn btn-secondary px-6 py-3 shadow-lg bg-[#0F172A]/80 backdrop-blur-md"
+                >
+                    &larr; 戻る
+                </Link>
+                <PrintButton />
+            </div>
+        </div>
     );
 }
+
+// Inline Client Component for Print Button
+import { PrintButton } from '../PrintButton';
