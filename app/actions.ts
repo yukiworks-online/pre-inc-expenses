@@ -173,7 +173,11 @@ export async function deleteExpenses(expenseIds: string[]) {
             return { success: false, error: 'Cannot delete settled expenses' };
         }
 
-        // Delete all target rows (in reverse order to preserve indices if that mattered, but row objects handle it)
+        // IMPORTANT: Sort by rowIndex in descending order to prevent index shifting
+        // when deleting multiple rows sequentially.
+        targetRows.sort((a, b) => (b as any).rowIndex - (a as any).rowIndex);
+
+        // Delete all target rows
         for (const row of targetRows) {
             await row.delete();
         }

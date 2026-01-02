@@ -51,6 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleSignOut = async () => {
         await signOut();
+        // Force full page reload to clear any residual state
+        window.location.href = '/';
     };
 
     return (
