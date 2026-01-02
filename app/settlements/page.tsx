@@ -21,7 +21,7 @@ export default async function SettlementsPage() {
         <div className="max-w-5xl mx-auto p-6 space-y-8 font-sans text-slate-200">
             <header className="border-b border-white/10 pb-6">
                 <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
-                    精算処理
+                    精算処理・削除 (Beta)
                 </h1>
                 <p className="text-slate-400">未精算の経費をまとめて精算書を作成します</p>
             </header>

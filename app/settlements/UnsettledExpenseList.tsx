@@ -1,15 +1,26 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { deleteExpenses } from '@/app/actions';
 import { SettlementButton } from './SettlementButton';
 import { useRouter } from 'next/navigation';
 import { type Expense } from '@/app/actions';
+import { useAuth } from '@/components/AuthProvider';
 
 export function UnsettledExpenseList({ expenses }: { expenses: Expense[] }) {
+    const { user, loading } = useAuth();
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [isDeleting, setIsDeleting] = useState(false);
     const router = useRouter();
+
+    useEffect(() => {
+        if (!loading && !user) {
+            router.push('/');
+        }
+    }, [user, loading, router]);
+
+    if (loading) return <div className="p-8 text-center text-slate-500">Loading auth...</div>;
+    if (!user) return null; // Will redirect via useEffect
 
     // Toggle single selection
     const toggleSelect = (id: string) => {
@@ -117,8 +128,8 @@ export function UnsettledExpenseList({ expenses }: { expenses: Expense[] }) {
                             <div
                                 key={expense.id}
                                 className={`glass-panel p-4 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${isSelected
-                                        ? 'bg-accent-primary/10 border-accent-primary/50'
-                                        : 'bg-white/5 border-white/5 hover:bg-white/10'
+                                    ? 'bg-accent-primary/10 border-accent-primary/50'
+                                    : 'bg-white/5 border-white/5 hover:bg-white/10'
                                     }`}
                                 onClick={() => toggleSelect(expense.id as string)}
                             >
