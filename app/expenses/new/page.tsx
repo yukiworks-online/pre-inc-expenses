@@ -60,7 +60,7 @@ export default function NewExpensePage() {
                     description: (data.line_items?.[0]?.description) || '経費',
                     payer: user?.displayName || (user?.email?.split('@')[0]) || '',
                     category: suggestCategory(data.vendor_name || ''),
-                    receiptUrl: result.fileUrl || ''
+                    receiptUrl: result.fileId || ''  // Store path (fileId) instead of signed URL
                 });
                 setShowForm(true);
             } else {

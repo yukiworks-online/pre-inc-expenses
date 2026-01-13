@@ -111,24 +111,69 @@ export async function getExpenses() {
         const rows = await sheet.getRows();
 
         // Map sheet rows to ExpenseData
-        const expenses: ExpenseData[] = rows.map((row) => ({
-            id: row.get('expense_id'),
-            date: row.get('incurred_date'),
-            vendor: row.get('vendor'),
-            amount: Number(row.get('amount_gross') || 0),
-            currency: row.get('currency'),
-            description: row.get('description'),
-            payer: row.get('payer'),
-            category: row.get('category'),
-            receiptUrl: row.get('receipt_url'),
-            status: row.get('settlement_status') || 'UNSETTLED',
-            settlementId: row.get('settlement_id'),
-        })).reverse(); // Show newest first
+        const expenses = await Promise.all(rows.map(async (row) => {
+            let receiptUrl = row.get('receipt_url');
+            
+            // Logic to handle Signed URL expiration
+            // 1. If it's a plain path (e.g. "receipts/123.jpg"), generate a signed URL
+            if (receiptUrl && !receiptUrl.startsWith('http')) {
+                receiptUrl = await getSignedUrlForPath(receiptUrl) || receiptUrl;
+            } 
+            // 2. If it's an existing URL, check if we can extract the path to refresh it
+            // (This fixes the "ExpiredToken" error for existing data)
+            else if (receiptUrl && receiptUrl.includes('receipts')) {
+                // Try to find the "receipts/..." part
+                const match = receiptUrl.match(/(receipts\/[^?#]+)/);
+                if (match) {
+                    const decodedPath = decodeURIComponent(match[1]);
+                     // Regenerate a fresh URL
+                    const freshUrl = await getSignedUrlForPath(decodedPath);
+                    if (freshUrl) {
+                        receiptUrl = freshUrl;
+                    }
+                }
+            }
 
-        return { success: true, data: expenses };
+            return {
+                id: row.get('expense_id'),
+                date: row.get('incurred_date'),
+                vendor: row.get('vendor'),
+                amount: Number(row.get('amount_gross') || 0),
+                currency: row.get('currency'),
+                description: row.get('description'),
+                payer: row.get('payer'),
+                category: row.get('category'),
+                receiptUrl: receiptUrl,
+                status: row.get('settlement_status') || 'UNSETTLED',
+                settlementId: row.get('settlement_id'),
+            };
+        }));
+
+        return { success: true, data: expenses.reverse() }; // Show newest first
     } catch (error: any) {
         console.error("Failed to fetch expenses:", error);
         return { success: false, error: error.message };
+    }
+}
+
+// Helper to generate signed URL
+async function getSignedUrlForPath(filePath: string) {
+    try {
+        const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
+        const bucket = getAdminStorage().bucket(bucketName);
+        const file = bucket.file(filePath);
+        
+        // Check if file exists to avoid signing non-existent files (optional but good)
+        // For performance we might skip existence check, but let's just sign it.
+        
+        const [url] = await file.getSignedUrl({
+            action: 'read',
+            expires: Date.now() + 24 * 60 * 60 * 1000, // Valid for 24 hours
+        });
+        return url;
+    } catch (e) {
+        console.warn(`Failed to sign URL for path ${filePath}:`, e);
+        return null;
     }
 }
 
