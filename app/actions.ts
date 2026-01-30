@@ -155,7 +155,7 @@ export async function getExpenses() {
                 description: row.get('description'),
                 payer: row.get('payer'),
                 category: row.get('category'),
-                receiptUrl: finalUrl, // Always use the reconstructed URL
+                receiptUrl: finalUrl || undefined, // Convert null to undefined for Type compatibility
                 status: row.get('settlement_status') || 'UNSETTLED',
                 settlementId: row.get('settlement_id'),
             };
