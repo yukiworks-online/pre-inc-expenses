@@ -118,7 +118,12 @@ export async function getExpenses() {
             if (receiptUrl && !receiptUrl.startsWith('http')) {
                 receiptUrl = await getSignedUrlForPath(receiptUrl) || receiptUrl;
             }
-            // Existing HTTP URLs are left as-is (they will work because Storage is now Public)
+            // If it's an existing HTTP URL, strip the 'token' parameter.
+            // Even if Storage is public, passing an expired token causes an error.
+            // Removing it forces access via the public rule.
+            else if (receiptUrl && receiptUrl.startsWith('http')) {
+                receiptUrl = receiptUrl.replace(/([&?]token=[^&]*)/, '');
+            }
 
             return {
                 id: row.get('expense_id'),
