@@ -121,33 +121,21 @@ export async function getExpenses() {
             if (rawValue) {
                 let pathStr = rawValue;
 
-                // 1. Extract path if it's a full URL
-                if (rawValue.startsWith('http')) {
-                    // Case A: Standard Firebase format (.../o/path...)
-                    const firebaseMatch = rawValue.match(/\/o\/([^?#]+)/);
-                    if (firebaseMatch) {
-                        pathStr = decodeURIComponent(firebaseMatch[1]);
-                    }
-                    // Case B: Legacy GCS format (storage.googleapis.com/BUCKET/path)
-                    // found: https://storage.googleapis.com/pj-settlement.firebasestorage.app/receipts/...
-                    else if (rawValue.includes('storage.googleapis.com')) {
-                        // Regex: storage.googleapis.com/[bucketName]/[capturedPath]
-                        // We use the known bucketName to find the start of the path
-                        const legacyMatch = rawValue.match(new RegExp(`storage\\.googleapis\\.com\/${bucketName.replace('.', '\\.')}\/([^?#]+)`));
-                        if (legacyMatch) {
-                            pathStr = decodeURIComponent(legacyMatch[1]);
-                        } else {
-                            // Fallback: just look for 'receipts/' if bucket match fails
-                            const genericMatch = rawValue.match(/(receipts(?:\/|%2F)[^?#]+)/);
-                            if (genericMatch) pathStr = decodeURIComponent(genericMatch[1]);
-                        }
-                    }
-                    // Case C: Generic fallback
-                    else {
-                        const genericMatch = rawValue.match(/(receipts(?:\/|%2F)[^?#]+)/);
-                        if (genericMatch) {
-                            pathStr = decodeURIComponent(genericMatch[1]);
-                        }
+                // 1. Extract path using robust fallback logic
+                // We don't rely on domain matching because it can vary (storage.googleapis.com vs firebasestorage.googleapis.com)
+                // We just look for the known path structure.
+
+                // Priority A: Standard Firebase "/o/" format
+                const oMatch = rawValue.match(/\/o\/([^?#]+)/);
+                if (oMatch) {
+                    pathStr = decodeURIComponent(oMatch[1]);
+                }
+                // Priority B: Look for known "receipts/" folder
+                // This catches "storage.googleapis.com/.../receipts/..." without caring about the bucket name part
+                else {
+                    const receiptsMatch = rawValue.match(/(receipts(?:\/|%2F).+?)(\?|#|$)/);
+                    if (receiptsMatch) {
+                        pathStr = decodeURIComponent(receiptsMatch[1]);
                     }
                 }
 
