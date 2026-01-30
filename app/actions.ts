@@ -112,17 +112,38 @@ export async function getExpenses() {
 
         // Map sheet rows to ExpenseData
         const expenses = await Promise.all(rows.map(async (row) => {
-            let receiptUrl = row.get('receipt_url');
+            // [FUNDAMENTAL FIX] Force-reconstruct valid Public URLs
+            // Regardless of what is stored (expired URL, GCS URL, or path), we rebuild it to a guaranteed valid Public Firebase URL.
 
-            // If it's a plain path (e.g. "receipts/123.jpg"), generate a viewable URL
-            if (receiptUrl && !receiptUrl.startsWith('http')) {
-                receiptUrl = await getSignedUrlForPath(receiptUrl) || receiptUrl;
-            }
-            // If it's an existing HTTP URL, strip ALL query parameters (Signature, Expires, etc.)
-            // Passing expired signatures causes Google to reject the request before checking Public rules.
-            // By stripping them, we force a "Public" access which is now allowed.
-            else if (receiptUrl && receiptUrl.startsWith('http')) {
-                receiptUrl = receiptUrl.split('?')[0];
+            let finalUrl = null;
+            const rawValue = row.get('receipt_url');
+
+            if (rawValue) {
+                let pathStr = rawValue;
+
+                // 1. Extract path if it's a full URL
+                if (rawValue.startsWith('http')) {
+                    // Try Firebase format (.../o/path...)
+                    const firebaseMatch = rawValue.match(/\/o\/([^?#]+)/);
+                    if (firebaseMatch) {
+                        pathStr = decodeURIComponent(firebaseMatch[1]);
+                    }
+                    // Try generic format (.../receipts/...)
+                    else {
+                        const genericMatch = rawValue.match(/(receipts(?:\/|%2F)[^?#]+)/);
+                        if (genericMatch) {
+                            pathStr = decodeURIComponent(genericMatch[1]);
+                        }
+                    }
+                }
+
+                // 2. Clean path (remove leading slashes if any)
+                if (pathStr.startsWith('/')) pathStr = pathStr.slice(1);
+
+                // 3. Construct the definitive Public URL
+                // Format: https://firebasestorage.googleapis.com/v0/b/[BUCKET]/o/[ENCODED_PATH]?alt=media
+                const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
+                finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(pathStr)}?alt=media`;
             }
 
             return {
@@ -134,7 +155,7 @@ export async function getExpenses() {
                 description: row.get('description'),
                 payer: row.get('payer'),
                 category: row.get('category'),
-                receiptUrl: receiptUrl,
+                receiptUrl: finalUrl, // Always use the reconstructed URL
                 status: row.get('settlement_status') || 'UNSETTLED',
                 settlementId: row.get('settlement_id'),
             };
