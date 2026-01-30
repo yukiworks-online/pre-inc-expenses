@@ -113,20 +113,20 @@ export async function getExpenses() {
         // Map sheet rows to ExpenseData
         const expenses = await Promise.all(rows.map(async (row) => {
             let receiptUrl = row.get('receipt_url');
-            
+
             // Logic to handle Signed URL expiration
             // 1. If it's a plain path (e.g. "receipts/123.jpg"), generate a signed URL
             if (receiptUrl && !receiptUrl.startsWith('http')) {
                 receiptUrl = await getSignedUrlForPath(receiptUrl) || receiptUrl;
-            } 
+            }
             // 2. If it's an existing URL, check if we can extract the path to refresh it
             // (This fixes the "ExpiredToken" error for existing data)
             else if (receiptUrl && receiptUrl.includes('receipts')) {
-                // Try to find the "receipts/..." part
-                const match = receiptUrl.match(/(receipts\/[^?#]+)/);
+                // Try to find the "receipts/..." part (handling both / and %2F)
+                const match = receiptUrl.match(/(receipts(?:\/|%2F)[^?#]+)/);
                 if (match) {
                     const decodedPath = decodeURIComponent(match[1]);
-                     // Regenerate a fresh URL
+                    // Regenerate a fresh URL
                     const freshUrl = await getSignedUrlForPath(decodedPath);
                     if (freshUrl) {
                         receiptUrl = freshUrl;
@@ -162,10 +162,10 @@ async function getSignedUrlForPath(filePath: string) {
         const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
         const bucket = getAdminStorage().bucket(bucketName);
         const file = bucket.file(filePath);
-        
+
         // Check if file exists to avoid signing non-existent files (optional but good)
         // For performance we might skip existence check, but let's just sign it.
-        
+
         const [url] = await file.getSignedUrl({
             action: 'read',
             expires: Date.now() + 24 * 60 * 60 * 1000, // Valid for 24 hours
