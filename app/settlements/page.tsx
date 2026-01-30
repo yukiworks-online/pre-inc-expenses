@@ -1,4 +1,4 @@
-import { getExpenses } from '@/app/actions';
+import { getExpensesFresh } from '@/app/actions';
 import { UnsettledExpenseList } from './UnsettledExpenseList';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export default async function SettlementsPage() {
-    const { success, data: expenses, error } = await getExpenses();
+    const { success, data: expenses, error } = await getExpensesFresh();
 
     if (!success || !expenses) {
         return <div className="p-8 text-center text-red-400">Error: {error}</div>;

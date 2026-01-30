@@ -107,7 +107,7 @@ export async function registerExpense(data: ExpenseData) {
 
 import { unstable_noStore as noStore } from 'next/cache';
 
-export async function getExpenses() {
+export async function getExpensesFresh() {
     noStore(); // Force dynamic rendering: Disable cache to ensure URL logic runs freshly
     try {
         const sheet = await getSheet('Expenses');

@@ -1,4 +1,4 @@
-import { getExpenses } from '@/app/actions';
+import { getExpensesFresh } from '@/app/actions';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import AuthGuard from '@/components/AuthGuard';
@@ -7,7 +7,7 @@ import { ExpenseRowActions } from './ExpenseRowActions';
 export const dynamic = 'force-dynamic';
 
 export default async function ExpensesPage() {
-    const { success, data: expenses, error } = await getExpenses();
+    const { success, data: expenses, error } = await getExpensesFresh();
 
     if (!success || !expenses) {
         return (
