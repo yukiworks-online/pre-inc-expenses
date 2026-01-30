@@ -113,22 +113,36 @@ export async function getExpenses() {
         // Map sheet rows to ExpenseData
         const expenses = await Promise.all(rows.map(async (row) => {
             // [FUNDAMENTAL FIX] Force-reconstruct valid Public URLs
-            // Regardless of what is stored (expired URL, GCS URL, or path), we rebuild it to a guaranteed valid Public Firebase URL.
 
             let finalUrl = null;
             const rawValue = row.get('receipt_url');
+            const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
 
             if (rawValue) {
                 let pathStr = rawValue;
 
                 // 1. Extract path if it's a full URL
                 if (rawValue.startsWith('http')) {
-                    // Try Firebase format (.../o/path...)
+                    // Case A: Standard Firebase format (.../o/path...)
                     const firebaseMatch = rawValue.match(/\/o\/([^?#]+)/);
                     if (firebaseMatch) {
                         pathStr = decodeURIComponent(firebaseMatch[1]);
                     }
-                    // Try generic format (.../receipts/...)
+                    // Case B: Legacy GCS format (storage.googleapis.com/BUCKET/path)
+                    // found: https://storage.googleapis.com/pj-settlement.firebasestorage.app/receipts/...
+                    else if (rawValue.includes('storage.googleapis.com')) {
+                        // Regex: storage.googleapis.com/[bucketName]/[capturedPath]
+                        // We use the known bucketName to find the start of the path
+                        const legacyMatch = rawValue.match(new RegExp(`storage\\.googleapis\\.com\/${bucketName.replace('.', '\\.')}\/([^?#]+)`));
+                        if (legacyMatch) {
+                            pathStr = decodeURIComponent(legacyMatch[1]);
+                        } else {
+                            // Fallback: just look for 'receipts/' if bucket match fails
+                            const genericMatch = rawValue.match(/(receipts(?:\/|%2F)[^?#]+)/);
+                            if (genericMatch) pathStr = decodeURIComponent(genericMatch[1]);
+                        }
+                    }
+                    // Case C: Generic fallback
                     else {
                         const genericMatch = rawValue.match(/(receipts(?:\/|%2F)[^?#]+)/);
                         if (genericMatch) {
@@ -141,8 +155,6 @@ export async function getExpenses() {
                 if (pathStr.startsWith('/')) pathStr = pathStr.slice(1);
 
                 // 3. Construct the definitive Public URL
-                // Format: https://firebasestorage.googleapis.com/v0/b/[BUCKET]/o/[ENCODED_PATH]?alt=media
-                const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
                 finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(pathStr)}?alt=media`;
             }
 
@@ -155,7 +167,7 @@ export async function getExpenses() {
                 description: row.get('description'),
                 payer: row.get('payer'),
                 category: row.get('category'),
-                receiptUrl: finalUrl || undefined, // Convert null to undefined for Type compatibility
+                receiptUrl: finalUrl || undefined, // Always use the reconstructed URL
                 status: row.get('settlement_status') || 'UNSETTLED',
                 settlementId: row.get('settlement_id'),
             };
