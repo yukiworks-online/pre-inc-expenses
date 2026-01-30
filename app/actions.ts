@@ -118,11 +118,11 @@ export async function getExpenses() {
             if (receiptUrl && !receiptUrl.startsWith('http')) {
                 receiptUrl = await getSignedUrlForPath(receiptUrl) || receiptUrl;
             }
-            // If it's an existing HTTP URL, strip the 'token' parameter.
-            // Even if Storage is public, passing an expired token causes an error.
-            // Removing it forces access via the public rule.
+            // If it's an existing HTTP URL, strip ALL query parameters (Signature, Expires, etc.)
+            // Passing expired signatures causes Google to reject the request before checking Public rules.
+            // By stripping them, we force a "Public" access which is now allowed.
             else if (receiptUrl && receiptUrl.startsWith('http')) {
-                receiptUrl = receiptUrl.replace(/([&?]token=[^&]*)/, '');
+                receiptUrl = receiptUrl.split('?')[0];
             }
 
             return {
