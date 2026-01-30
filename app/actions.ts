@@ -119,17 +119,41 @@ export async function getExpenses() {
             if (receiptUrl && !receiptUrl.startsWith('http')) {
                 receiptUrl = await getSignedUrlForPath(receiptUrl) || receiptUrl;
             }
-            // 2. If it's an existing URL, check if we can extract the path to refresh it
-            // (This fixes the "ExpiredToken" error for existing data)
-            else if (receiptUrl && receiptUrl.includes('receipts')) {
-                // Try to find the "receipts/..." part (handling both / and %2F)
-                const match = receiptUrl.match(/(receipts(?:\/|%2F)[^?#]+)/);
-                if (match) {
-                    const decodedPath = decodeURIComponent(match[1]);
-                    // Regenerate a fresh URL
-                    const freshUrl = await getSignedUrlForPath(decodedPath);
+            // 2. Handle existing HTTP URLs (checking if they are expired or legacy)
+            else if (receiptUrl && receiptUrl.startsWith('http')) {
+                let filePath: string | null = null;
+
+                // Strategy A: Standard Firebase Storage URL format (.../o/path?...)
+                const firebaseMatch = receiptUrl.match(/\/o\/([^?#]+)/);
+                if (firebaseMatch) {
+                    filePath = decodeURIComponent(firebaseMatch[1]);
+                }
+                // Strategy B: Fallback looking for 'receipts' folder structure
+                else if (receiptUrl.includes('receipts')) {
+                    const match = receiptUrl.match(/(receipts(?:\/|%2F)[^?#]+)/);
+                    if (match) {
+                        filePath = decodeURIComponent(match[1]);
+                    }
+                }
+
+                // If we successfully extracted a path, verify/refresh it
+                if (filePath) {
+                    const freshUrl = await getSignedUrlForPath(filePath);
                     if (freshUrl) {
                         receiptUrl = freshUrl;
+
+                        // [AUTO-FIX] Migrate legacy full URL to relative path in Sheet
+                        // This ensures the link never "expires" in the DB, as we sign it on retrieval.
+                        try {
+                            // Only update if it's still storing the long HTTP URL
+                            if (row.get('receipt_url').startsWith('http')) {
+                                row.set('receipt_url', filePath);
+                                await row.save();
+                                console.log(`[Auto-Fix] Migrated legacy URL to path: ${filePath}`);
+                            }
+                        } catch (e) {
+                            console.error("[Auto-Fix] Failed to update row:", e);
+                        }
                     }
                 }
             }
