@@ -1,4 +1,4 @@
-import { getExpenses } from '@/app/actions';
+import { getExpensesFresh } from '@/app/actions';
 import { PrintButton } from '../PrintButton';
 import { RejectButton } from '../RejectButton';
 import Link from 'next/link';
@@ -11,7 +11,7 @@ const formatCurrency = (amount: number) => {
 
 export default async function SettlementReportPage({ params }: { params: { id: string } }) {
     const { id } = await Promise.resolve(params);
-    const { success, data: allExpenses, error } = await getExpenses();
+    const { success, data: allExpenses, error } = await getExpensesFresh();
 
     if (!success || !allExpenses) {
         return <div className="p-8 text-center text-red-500">Error loading data: {error}</div>;
