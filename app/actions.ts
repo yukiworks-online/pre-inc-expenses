@@ -114,56 +114,11 @@ export async function getExpenses() {
         const expenses = await Promise.all(rows.map(async (row) => {
             let receiptUrl = row.get('receipt_url');
 
-            // Logic to handle Signed URL expiration
-            // 1. If it's a plain path (e.g. "receipts/123.jpg"), generate a signed URL
+            // If it's a plain path (e.g. "receipts/123.jpg"), generate a viewable URL
             if (receiptUrl && !receiptUrl.startsWith('http')) {
                 receiptUrl = await getSignedUrlForPath(receiptUrl) || receiptUrl;
             }
-            // 2. Handle existing HTTP URLs (checking if they are expired or legacy)
-            else if (receiptUrl && receiptUrl.startsWith('http')) {
-                // Try to extract the storage path from the URL
-                // Support multiple formats:
-                // - .../o/receipts%2Fimage.png...
-                // - .../receipts/image.png...
-                let filePath: string | null = null;
-
-                try {
-                    const match = receiptUrl.match(/\/o\/([^?#]+)/) || receiptUrl.match(/(receipts(?:\/|%2F)[^?#]+)/);
-                    if (match) {
-                        filePath = decodeURIComponent(match[1]);
-                        // Ensure no leading slash
-                        if (filePath.startsWith('/')) filePath = filePath.slice(1);
-                    }
-                } catch (e) {
-                    console.error("Path extraction error:", e);
-                }
-
-                // If we successfully extracted a path, verify/refresh it
-                if (filePath) {
-                    // console.log(`[Fix] Refreshing URL for path: ${filePath}`); // Debug log
-                    const freshUrl = await getSignedUrlForPath(filePath);
-
-                    if (freshUrl) {
-                        receiptUrl = freshUrl;
-
-                        // [AUTO-FIX] Migrate legacy full URL to relative path in Sheet permanently
-                        try {
-                            // Verify it is NOT already a path before saving (optimization)
-                            if (row.get('receipt_url').startsWith('http')) {
-                                row.set('receipt_url', filePath); // Save the clean path, NOT the signed URL
-                                await row.save();
-                                console.log(`[Auto-Fix] Migrated legacy URL to clean path: ${filePath}`);
-                            }
-                        } catch (e) {
-                            console.error("[Auto-Fix] Failed to update row:", e);
-                        }
-                    } else {
-                        console.warn(`[Fix] Failed to sign path: ${filePath}`);
-                    }
-                } else {
-                    console.warn(`[Fix] Could not extract path from: ${receiptUrl}`);
-                }
-            }
+            // Existing HTTP URLs are left as-is (they will work because Storage is now Public)
 
             return {
                 id: row.get('expense_id'),
