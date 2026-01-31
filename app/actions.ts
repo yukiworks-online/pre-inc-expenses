@@ -43,17 +43,13 @@ export async function processReceipt(formData: FormData) {
 
         return {
             success: true,
-            data: extractedData,
-            fileId: fileName,
-            fileUrl: signedUrl,
-            contentUrl: signedUrl
+            receiptUrl: fileName, // SAVE THE PATH, NOT THE URL
+            data: extractedData
         };
+
     } catch (error: any) {
-        console.error("Receipt processing failed:", error);
-        return {
-            success: false,
-            error: error.message
-        };
+        console.error("Failed to process receipt:", error);
+        return { success: false, error: error.message };
     }
 }
 
@@ -108,45 +104,23 @@ export async function registerExpense(data: ExpenseData) {
 import { unstable_noStore as noStore } from 'next/cache';
 
 export async function getExpensesFresh() {
-    noStore(); // Force dynamic rendering: Disable cache to ensure URL logic runs freshly
+    noStore(); // Disable cache
     try {
         const sheet = await getSheet('Expenses');
         const rows = await sheet.getRows();
 
         // Map sheet rows to ExpenseData
         const expenses = await Promise.all(rows.map(async (row) => {
-            // [FUNDAMENTAL FIX] Force-reconstruct valid Public URLs
-
-            let finalUrl = null;
-            const rawValue = row.get('receipt_url');
+            const rawPath = row.get('receipt_url'); // This is now just a path (e.g. "receipts/abc.jpg")
             const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
 
-            if (rawValue) {
-                let pathStr = rawValue;
-
-                // 1. Extract path using robust fallback logic
-                // We don't rely on domain matching because it can vary (storage.googleapis.com vs firebasestorage.googleapis.com)
-                // We just look for the known path structure.
-
-                // Priority A: Standard Firebase "/o/" format
-                const oMatch = rawValue.match(/\/o\/([^?#]+)/);
-                if (oMatch) {
-                    pathStr = decodeURIComponent(oMatch[1]);
-                }
-                // Priority B: Look for known "receipts/" folder
-                // This catches "storage.googleapis.com/.../receipts/..." without caring about the bucket name part
-                else {
-                    const receiptsMatch = rawValue.match(/(receipts(?:\/|%2F).+?)(\?|#|$)/);
-                    if (receiptsMatch) {
-                        pathStr = decodeURIComponent(receiptsMatch[1]);
-                    }
-                }
-
-                // 2. Clean path (remove leading slashes if any)
-                if (pathStr.startsWith('/')) pathStr = pathStr.slice(1);
-
-                // 3. Construct the definitive Public URL
-                finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(pathStr)}?alt=media`;
+            // Construct Simple Public URL
+            // Since bucket is public, we can just use storage.googleapis.com/BUCKET/PATH
+            let finalUrl = undefined;
+            if (rawPath) {
+                // Ensure we don't double slashes if path starts with /
+                const cleanPath = rawPath.startsWith('/') ? rawPath.slice(1) : rawPath;
+                finalUrl = `https://storage.googleapis.com/${bucketName}/${cleanPath}`;
             }
 
             return {
@@ -158,13 +132,13 @@ export async function getExpensesFresh() {
                 description: row.get('description'),
                 payer: row.get('payer'),
                 category: row.get('category'),
-                receiptUrl: finalUrl || undefined, // Always use the reconstructed URL
+                receiptUrl: finalUrl,
                 status: row.get('settlement_status') || 'UNSETTLED',
                 settlementId: row.get('settlement_id'),
             };
         }));
 
-        return { success: true, data: expenses.reverse() }; // Show newest first
+        return { success: true, data: expenses.reverse() };
     } catch (error: any) {
         console.error("Failed to fetch expenses:", error);
         return { success: false, error: error.message };
