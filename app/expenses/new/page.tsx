@@ -54,8 +54,8 @@ export default function NewExpensePage() {
 
                 // Construct Public URL for preview
                 // Ensure no double slashes if path starts with /
-                const cleanPath = filePath?.startsWith('/') ? filePath.slice(1) : filePath;
-                const publicUrl = `https://storage.googleapis.com/${bucketName}/${cleanPath}`;
+                const cleanPath = (filePath?.startsWith('/') ? filePath.slice(1) : filePath) || '';
+                const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(cleanPath)}?alt=media`;
 
                 setReceiptUrl(publicUrl); // Preview uses Full URL
 

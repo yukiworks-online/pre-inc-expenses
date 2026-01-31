@@ -120,7 +120,8 @@ export async function getExpensesFresh() {
             if (rawPath) {
                 // Ensure we don't double slashes if path starts with /
                 const cleanPath = rawPath.startsWith('/') ? rawPath.slice(1) : rawPath;
-                finalUrl = `https://storage.googleapis.com/${bucketName}/${cleanPath}`;
+                // Use Firebase Storage URL format to respect Firebase Security Rules
+                finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(cleanPath)}?alt=media`;
             }
 
             return {
