@@ -103,6 +103,8 @@ export async function registerExpense(data: ExpenseData) {
 
 import { unstable_noStore as noStore } from 'next/cache';
 
+import { getPublicStorageUrl } from '@/lib/storage-utils';
+
 export async function getExpensesFresh() {
     noStore(); // Disable cache
     try {
@@ -111,18 +113,11 @@ export async function getExpensesFresh() {
 
         // Map sheet rows to ExpenseData
         const expenses = await Promise.all(rows.map(async (row) => {
-            const rawPath = row.get('receipt_url'); // This is now just a path (e.g. "receipts/abc.jpg")
-            const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
+            // Retrieve path from spreadsheet (e.g., "receipts/abc.jpg")
+            const rawPath = row.get('receipt_url');
 
-            // Construct Simple Public URL
-            // Since bucket is public, we can just use storage.googleapis.com/BUCKET/PATH
-            let finalUrl = undefined;
-            if (rawPath) {
-                // Ensure we don't double slashes if path starts with /
-                const cleanPath = rawPath.startsWith('/') ? rawPath.slice(1) : rawPath;
-                // Use Firebase Storage URL format to respect Firebase Security Rules
-                finalUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(cleanPath)}?alt=media`;
-            }
+            // Generate valid public URL on the fly
+            const finalUrl = getPublicStorageUrl(rawPath);
 
             return {
                 id: row.get('expense_id'),

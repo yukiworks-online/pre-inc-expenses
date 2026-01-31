@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { processReceipt, registerExpense, type ExpenseData } from '@/app/actions';
+import { getPublicStorageUrl } from '@/lib/storage-utils';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
@@ -50,14 +51,11 @@ export default function NewExpensePage() {
             if (result.success) {
                 const data = result.data;
                 const filePath = result.receiptUrl; // This is a PATH now (receipts/...)
-                const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
 
-                // Construct Public URL for preview
-                // Ensure no double slashes if path starts with /
-                const cleanPath = (filePath?.startsWith('/') ? filePath.slice(1) : filePath) || '';
-                const publicUrl = `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(cleanPath)}?alt=media`;
+                // Construct Public URL for preview using shared utility
+                const publicUrl = getPublicStorageUrl(filePath);
 
-                setReceiptUrl(publicUrl); // Preview uses Full URL
+                setReceiptUrl(publicUrl || null); // Preview uses Full URL
 
                 // Populate form with AI data
                 setFormData({
