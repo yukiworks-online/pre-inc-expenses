@@ -49,7 +49,15 @@ export default function NewExpensePage() {
             const result = await processReceipt(formDataPayload);
             if (result.success) {
                 const data = result.data;
-                setReceiptUrl(result.fileUrl || null);
+                const filePath = result.receiptUrl; // This is a PATH now (receipts/...)
+                const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
+
+                // Construct Public URL for preview
+                // Ensure no double slashes if path starts with /
+                const cleanPath = filePath?.startsWith('/') ? filePath.slice(1) : filePath;
+                const publicUrl = `https://storage.googleapis.com/${bucketName}/${cleanPath}`;
+
+                setReceiptUrl(publicUrl); // Preview uses Full URL
 
                 // Populate form with AI data
                 setFormData({
@@ -60,7 +68,7 @@ export default function NewExpensePage() {
                     description: (data.line_items?.[0]?.description) || '経費',
                     payer: user?.displayName || (user?.email?.split('@')[0]) || '',
                     category: suggestCategory(data.vendor_name || ''),
-                    receiptUrl: result.fileId || ''  // Store path (fileId) instead of signed URL
+                    receiptUrl: filePath || ''  // DB Save uses Path ONLY
                 });
                 setShowForm(true);
             } else {
