@@ -45,31 +45,51 @@ const schema = {
     required: ["total_amount", "confidence"] // Keep it loose
 };
 
-const MODEL_NAME = "gemini-3-flash-preview"; // Verified available via API list
+async function callGeminiModelWithSchema(modelName: string, prompt: string, imageBuffer: Buffer, mimeType: string) {
+    const model = genAI.getGenerativeModel({
+        model: modelName,
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: schema as any
+        }
+    });
 
-const model = genAI.getGenerativeModel({
-    model: MODEL_NAME,
-    generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: schema as any
-    }
-});
+    const result = await model.generateContent([
+        prompt,
+        {
+            inlineData: {
+                data: imageBuffer.toString("base64"),
+                mimeType: mimeType
+            }
+        }
+    ]);
+    return JSON.parse(result.response.text());
+}
 
 export async function extractReceiptData(imageBuffer: Buffer, mimeType: string) {
+    const prompt = "Extract the following data from this receipt. Return JSON.";
+
     try {
-        const prompt = "Extract the following data from this receipt. Return JSON.";
-        const result = await model.generateContent([
-            prompt,
-            {
-                inlineData: {
-                    data: imageBuffer.toString("base64"),
-                    mimeType: mimeType
-                }
+        // Attempt 1: Gemini 3.0 Flash (Highest Performance)
+        return await callGeminiModelWithSchema("gemini-3.0-flash", prompt, imageBuffer, mimeType);
+    } catch (err: any) {
+        console.warn("Primary Model (gemini-3.0-flash) failed:", err.message);
+
+        // Attempt 2: Fallback to Gemini 2.5 Flash (Older Flash)
+        try {
+            console.log("Falling back to Secondary: gemini-2.5-flash");
+            return await callGeminiModelWithSchema("gemini-2.5-flash", prompt, imageBuffer, mimeType);
+        } catch (errRetry: any) {
+            console.warn("Secondary Model (gemini-2.5-flash) failed:", errRetry.message);
+
+            // Attempt 3: Fallback to Gemini 3.1 Flash Lite (Lite but Newest)
+            try {
+                console.log("Falling back to Tertiary: gemini-3.1-flash-lite");
+                return await callGeminiModelWithSchema("gemini-3.1-flash-lite", prompt, imageBuffer, mimeType);
+            } catch (errFinal: any) {
+                console.error("All Gemini models failed. Last error (gemini-3.1-flash-lite):", errFinal);
+                throw errFinal;
             }
-        ]);
-        return JSON.parse(result.response.text());
-    } catch (error) {
-        console.error("Gemini Extraction Error:", error);
-        throw error;
+        }
     }
 }
