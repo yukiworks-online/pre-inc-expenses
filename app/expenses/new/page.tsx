@@ -3,11 +3,10 @@
 import { useState, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
 import { processReceiptFromStorage, registerExpense, type ExpenseData } from '@/app/actions';
-import { getPublicStorageUrl } from '@/lib/storage-utils';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { storage } from '@/lib/firebase';
-import { ref, uploadBytes } from 'firebase/storage';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 
 export default function NewExpensePage() {
     const router = useRouter();
@@ -51,16 +50,14 @@ export default function NewExpensePage() {
             await uploadBytes(storageRef, file, {
                 contentType: file.type || 'application/octet-stream',
             });
+            const downloadUrl = await getDownloadURL(storageRef);
 
             const result = await processReceiptFromStorage(filePath, file.type);
             if (result.success) {
                 const data = result.data;
                 const uploadedFilePath = result.receiptUrl; // This is a PATH now (receipts/...)
 
-                // Construct Public URL for preview using shared utility
-                const publicUrl = getPublicStorageUrl(uploadedFilePath);
-
-                setReceiptUrl(publicUrl || null); // Preview uses Full URL
+                setReceiptUrl(downloadUrl); // Preview uses signed/tokenized download URL
 
                 // Populate form with AI data
                 setFormData({

@@ -88,8 +88,6 @@ export async function registerExpense(data: ExpenseData) {
 
 import { unstable_noStore as noStore } from 'next/cache';
 
-import { getPublicStorageUrl } from '@/lib/storage-utils';
-
 export async function getExpensesFresh() {
     noStore(); // Disable cache
     try {
@@ -101,8 +99,8 @@ export async function getExpensesFresh() {
             // Retrieve path from spreadsheet (e.g., "receipts/abc.jpg")
             const rawPath = row.get('receipt_url');
 
-            // Generate valid public URL on the fly
-            const finalUrl = getPublicStorageUrl(rawPath);
+            // Generate a temporary signed URL so images work even with restricted Storage rules
+            const finalUrl = await getSignedUrlForPath(rawPath);
 
             return {
                 id: row.get('expense_id'),
@@ -127,8 +125,12 @@ export async function getExpensesFresh() {
 }
 
 // Helper to generate signed URL
-async function getSignedUrlForPath(filePath: string) {
+async function getSignedUrlForPath(filePath: string): Promise<string | undefined> {
     try {
+        if (!filePath) {
+            return undefined;
+        }
+
         const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
         const bucket = getAdminStorage().bucket(bucketName);
         const file = bucket.file(filePath);
@@ -143,7 +145,7 @@ async function getSignedUrlForPath(filePath: string) {
         return url;
     } catch (e) {
         console.warn(`Failed to sign URL for path ${filePath}:`, e);
-        return null;
+        return undefined;
     }
 }
 
