@@ -5,45 +5,30 @@ import { getAdminStorage } from '@/lib/firebase-admin';
 import { getSheet } from '@/lib/sheets';
 import { randomUUID } from 'crypto';
 
-export async function processReceipt(formData: FormData) {
+export async function processReceiptFromStorage(storagePath: string, mimeType?: string) {
     try {
-        const file = formData.get('file') as File;
-        if (!file) {
-            throw new Error('No file uploaded');
+        if (!storagePath) {
+            throw new Error('No receipt path provided');
         }
 
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const mimeType = file.type;
-        const fileName = `receipts/${Date.now()}_${file.name}`;
-
-        // 1. Upload to Firebase Storage
         const bucketName = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'pj-settlement.firebasestorage.app';
-        console.log(`[Upload] Target Bucket: ${bucketName}`);
-
         const bucket = getAdminStorage().bucket(bucketName);
-        const fileRef = bucket.file(fileName);
+        const fileRef = bucket.file(storagePath);
 
-        await fileRef.save(buffer, {
-            contentType: mimeType,
-            metadata: {
-                contentType: mimeType
-            }
-        });
+        const [exists] = await fileRef.exists();
+        if (!exists) {
+            throw new Error('Uploaded receipt file not found in storage');
+        }
 
-        // Generate Signed URL (valid for 7 days)
-        const [signedUrl] = await fileRef.getSignedUrl({
-            action: 'read',
-            expires: Date.now() + 7 * 24 * 60 * 60 * 1000,
-        });
+        const [buffer] = await fileRef.download();
+        const [metadata] = await fileRef.getMetadata();
+        const resolvedMimeType = mimeType || metadata.contentType || 'application/octet-stream';
 
-        console.log(`[Upload] Success Firebase: ${signedUrl}`);
-
-        // 2. Extract Data using Gemini
-        const extractedData = await extractReceiptData(buffer, mimeType);
+        const extractedData = await extractReceiptData(buffer, resolvedMimeType);
 
         return {
             success: true,
-            receiptUrl: fileName, // SAVE THE PATH, NOT THE URL
+            receiptUrl: storagePath,
             data: extractedData
         };
 
@@ -264,4 +249,3 @@ export async function unsetExpense(expenseId: string) {
         return { success: false, error: error.message };
     }
 }
-

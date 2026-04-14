@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { FileUpload } from '@/components/FileUpload';
-import { processReceipt, registerExpense, type ExpenseData } from '@/app/actions';
+import { processReceiptFromStorage, registerExpense, type ExpenseData } from '@/app/actions';
 import { getPublicStorageUrl } from '@/lib/storage-utils';
-import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes } from 'firebase/storage';
 
 export default function NewExpensePage() {
     const router = useRouter();
@@ -43,17 +44,21 @@ export default function NewExpensePage() {
         setIsProcessing(true);
         setShowForm(false);
 
-        const formDataPayload = new FormData();
-        formDataPayload.append('file', file);
-
         try {
-            const result = await processReceipt(formDataPayload);
+            const filePath = `receipts/${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, filePath);
+
+            await uploadBytes(storageRef, file, {
+                contentType: file.type || 'application/octet-stream',
+            });
+
+            const result = await processReceiptFromStorage(filePath, file.type);
             if (result.success) {
                 const data = result.data;
-                const filePath = result.receiptUrl; // This is a PATH now (receipts/...)
+                const uploadedFilePath = result.receiptUrl; // This is a PATH now (receipts/...)
 
                 // Construct Public URL for preview using shared utility
-                const publicUrl = getPublicStorageUrl(filePath);
+                const publicUrl = getPublicStorageUrl(uploadedFilePath);
 
                 setReceiptUrl(publicUrl || null); // Preview uses Full URL
 
@@ -66,7 +71,7 @@ export default function NewExpensePage() {
                     description: (data.line_items?.[0]?.description) || '経費',
                     payer: user?.displayName || (user?.email?.split('@')[0]) || '',
                     category: suggestCategory(data.vendor_name || ''),
-                    receiptUrl: filePath || ''  // DB Save uses Path ONLY
+                    receiptUrl: uploadedFilePath || ''  // DB Save uses Path ONLY
                 });
                 setShowForm(true);
             } else {

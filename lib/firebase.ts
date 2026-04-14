@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, type Auth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyMockKeyForBuild1234567890abcdefg", // Fake valid-format key
@@ -14,6 +15,7 @@ const firebaseConfig = {
 const app = getApps().length
     ? getApp()
     : initializeApp(firebaseConfig);
+const storage = getStorage(app);
 
 let auth: Auth | undefined;
 
@@ -30,6 +32,7 @@ if (firebaseConfig.apiKey && !firebaseConfig.apiKey.includes("MockKey")) {
 }
 
 export { auth };
+export { storage };
 export const googleProvider = new GoogleAuthProvider();
 
 export const signInWithGoogle = async () => {
