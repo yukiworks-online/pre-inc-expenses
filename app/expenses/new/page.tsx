@@ -74,7 +74,8 @@ export default function NewExpensePage() {
             }
         } catch (e) {
             console.error(e);
-            alert("予期せぬエラーが発生しました。");
+            const message = e instanceof Error ? e.message : '不明なエラー';
+            alert("予期せぬエラーが発生しました。\n" + message);
         } finally {
             setIsProcessing(false);
         }

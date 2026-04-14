@@ -22,7 +22,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(Boolean(auth));
 
     useEffect(() => {
         if (!auth) {
@@ -30,7 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
                 alert("システムエラー: 認証機能が初期化されていません。\n管理者にお問い合わせください。(API Key Missing)");
             }
-            setLoading(false);
             return;
         }
         const unsubscribe = onAuthStateChanged(auth, (user) => {

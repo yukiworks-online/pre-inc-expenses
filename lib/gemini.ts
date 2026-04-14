@@ -68,28 +68,27 @@ async function callGeminiModelWithSchema(modelName: string, prompt: string, imag
 
 export async function extractReceiptData(imageBuffer: Buffer, mimeType: string) {
     const prompt = "Extract the following data from this receipt. Return JSON.";
+    const modelCandidates = [
+        "gemini-3-flash-preview",
+        "gemini-2.5-flash",
+        "gemini-3.1-flash-lite",
+    ] as const;
 
-    try {
-        // Attempt 1: Gemini 3.0 Flash (Highest Performance)
-        return await callGeminiModelWithSchema("gemini-3.0-flash", prompt, imageBuffer, mimeType);
-    } catch (err: any) {
-        console.warn("Primary Model (gemini-3.0-flash) failed:", err.message);
+    let lastError: unknown;
 
-        // Attempt 2: Fallback to Gemini 2.5 Flash (Older Flash)
+    for (const modelName of modelCandidates) {
         try {
-            console.log("Falling back to Secondary: gemini-2.5-flash");
-            return await callGeminiModelWithSchema("gemini-2.5-flash", prompt, imageBuffer, mimeType);
-        } catch (errRetry: any) {
-            console.warn("Secondary Model (gemini-2.5-flash) failed:", errRetry.message);
-
-            // Attempt 3: Fallback to Gemini 3.1 Flash Lite (Lite but Newest)
-            try {
-                console.log("Falling back to Tertiary: gemini-3.1-flash-lite");
-                return await callGeminiModelWithSchema("gemini-3.1-flash-lite", prompt, imageBuffer, mimeType);
-            } catch (errFinal: any) {
-                console.error("All Gemini models failed. Last error (gemini-3.1-flash-lite):", errFinal);
-                throw errFinal;
-            }
+            return await callGeminiModelWithSchema(modelName, prompt, imageBuffer, mimeType);
+        } catch (error) {
+            lastError = error;
+            const message = error instanceof Error ? error.message : String(error);
+            console.warn(`Gemini model failed: ${modelName}`, message);
         }
     }
+
+    throw new Error(
+        `All Gemini models failed. Last error: ${
+            lastError instanceof Error ? lastError.message : String(lastError)
+        }`
+    );
 }
